@@ -28,9 +28,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (session?.user) {
         loadUserProfile(session.user.id);
       } else {
-        if (isMounted.current) {
-          setLoading(false);
-        }
+        Promise.resolve().then(() => {
+          if (isMounted.current) {
+            setLoading(false);
+          }
+        });
       }
     });
 
@@ -40,10 +42,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           await loadUserProfile(session.user.id);
         } else {
-          if (isMounted.current) {
-            setUser(null);
-            setLoading(false);
-          }
+          Promise.resolve().then(() => {
+            if (isMounted.current) {
+              setUser(null);
+              setLoading(false);
+            }
+          });
         }
       }
     );
@@ -63,9 +67,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Error loading user profile:', error);
     } finally {
-      if (isMounted.current) {
-        setLoading(false);
-      }
+      Promise.resolve().then(() => {
+        if (isMounted.current) {
+          setLoading(false);
+        }
+      });
     }
   };
 
@@ -91,9 +97,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     await authService.signOut();
-    if (isMounted.current) {
-      setUser(null);
-    }
+    Promise.resolve().then(() => {
+      if (isMounted.current) {
+        setUser(null);
+      }
+    });
   };
 
   const updateProfile = async (updates: Partial<User>) => {
