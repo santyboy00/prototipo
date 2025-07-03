@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { authService } from '../lib/auth';
 import { databaseService } from '../lib/database';
@@ -18,14 +18,19 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const isMounted = useRef(true);
 
   useEffect(() => {
+    isMounted.current = true;
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         loadUserProfile(session.user.id);
       } else {
-        setLoading(false);
+        if (isMounted.current) {
+          setLoading(false);
+        }
       }
     });
 
@@ -35,25 +40,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           await loadUserProfile(session.user.id);
         } else {
-          setUser(null);
-          setLoading(false);
+          if (isMounted.current) {
+            setUser(null);
+            setLoading(false);
+          }
         }
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted.current = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const loadUserProfile = async (userId: string) => {
     try {
       const { data, error } = await databaseService.getUserProfile(userId);
-      if (data && !error) {
+      if (data && !error && isMounted.current) {
         setUser(data);
       }
     } catch (error) {
       console.error('Error loading user profile:', error);
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -79,14 +91,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     await authService.signOut();
-    setUser(null);
+    if (isMounted.current) {
+      setUser(null);
+    }
   };
 
   const updateProfile = async (updates: Partial<User>) => {
     if (!user) return { error: new Error('No user logged in') };
     
     const { error } = await databaseService.updateUserProfile(user.id, updates);
-    if (!error) {
+    if (!error && isMounted.current) {
       setUser({ ...user, ...updates });
     }
     return { error };
